@@ -45,9 +45,6 @@ class Carte:
     
     def partager(self):
         return self.carte.pop()
-    
-    def restaurer(self):
-        self._carte = list(self.c)
 
 class Jeu(Carte):
     def __init__(self):
@@ -56,12 +53,16 @@ class Jeu(Carte):
         self.joueur = [self.partager(), self.partager()]
         self.croupier = [self.partager(), self.partager()]
         self.mise = 0
+        self.nbr_c = 10
+        self.maintenant = 0
+        self.isCroupier = 0
         documents = Path.home() / "Documents"
         self.fichier = documents / "data.csv"
         try :
-            self.nom, self.fond = self.charger()
-        except FileNotFoundError:
-            self.sauvegarder("", "10000")
+            self.nom, self.fond, self.mise_max = self.charger()
+        except (FileNotFoundError, IndexError):
+            self.sauvegarder("", "10000", "10000")
+            self.nom, self.fond, self.mise_max = self.charger()
         self.taux_10 = 0
         self.taux_20 = 0
         self.taux_50 = 0
@@ -89,11 +90,11 @@ class Jeu(Carte):
                 p += l[i][0]
         return p
     def mise_disp(self, taux:int):
-        return int(self.fond * taux)
+        return int(self.mise_max * taux)
     def taux_mise(self):
-        self.taux_10 = self.fond * 0.1
-        self.taux_20 = self.fond * 0.2
-        self.taux_50 = self.fond * 0.5
+        self.taux_10 = self.mise_max * 0.1
+        self.taux_20 = self.mise_max * 0.2
+        self.taux_50 = self.mise_max * 0.5
 
     def mise_10(self):
         if  self.fond - self.taux_10 >= 0:
@@ -108,16 +109,29 @@ class Jeu(Carte):
             self.mise += self.taux_50
             self.fond -= int(self.taux_50)
     def carte_joueur(self):
+        self.nbr_c -= 1
         self.joueur.append(self.partager())
+    def carte_croupier(self):
+        self.nbr_c -= 1
+        self.croupier.append(self.partager())
     
-    def verification(self, c: list, j: list):
-        pass
+    def restaurer(self):
+        self._carte = list(self.c)
+        self.melanger()
+        self.joueur = [self.partager(), self.partager()]
+        self.croupier = [self.partager(), self.partager()]
+        self.maintenant = pygame.time.get_ticks()
+        self.isCroupier = 0
+
+    def verification(self):
+        self.isCroupier = 1
+        self.maintenant = pygame.time.get_ticks()
     
-    def sauvegarder(self, nom: str, argent:int):
+    def sauvegarder(self, nom: str, argent:int, mise_max: int):
         with open(self.fichier, mode='w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(["nom", "argent"])
-            writer.writerow([nom, argent])
+            writer.writerow(["nom", "argent", "mise_max"])
+            writer.writerow([nom, argent, mise_max])
     def charger(self):
         with open(self.fichier, mode='r') as f:
             reader = csv.reader(f)
@@ -125,7 +139,8 @@ class Jeu(Carte):
             for ligne in reader:
                 nom = ligne[0]
                 argent = int(ligne[1])
-                return nom, argent
+                mise_max = int(ligne[2])
+                return nom, argent,mise_max
 
 class GameEngine:
     def __init__(self):
@@ -135,6 +150,8 @@ class GameEngine:
         self.STATE = "Menu"
 
         self.miser = 1
+
+        self.isblackjack = 0
         
         self.game = Jeu()
         
@@ -177,7 +194,7 @@ class GameEngine:
         
         try:
             pygame.mixer.music.load("KOOL CATS by Kevin MacLeod.mp3")  # Remplace par ton fichier
-            pygame.mixer.music.set_volume(0.2)           # Volume 50%
+            pygame.mixer.music.set_volume(0.5)           # Volume 50%
             pygame.mixer.music.play(-1)                  # Boucle infinie
         except pygame.error:
             print("Attention: musique introuvable ou format non supporté")
@@ -196,12 +213,16 @@ class GameEngine:
             interface.Button(self.SCREEN_WIDTH // 2 - 280, self.SCREEN_HEIGHT // 2 + 100, 100, 50, str(self.game.mise_disp(0.1)), self.game.mise_10),
             interface.Button(self.SCREEN_WIDTH // 2 - 80, self.SCREEN_HEIGHT // 2 + 100, 100, 50, str(self.game.mise_disp(0.2)), self.game.mise_20),
             interface.Button(self.SCREEN_WIDTH - 280, self.SCREEN_HEIGHT // 2 + 100, 100, 50, str(self.game.mise_disp(0.5)), self.game.mise_50),
-            interface.Button(self.SCREEN_WIDTH // 2 - 110, self.SCREEN_HEIGHT // 2 + 160, 150, 50, "Terminer", self.terminer)
+            interface.Button(self.SCREEN_WIDTH // 2 - 150, self.SCREEN_HEIGHT // 2 + 160, 150, 50, "Terminer", self.terminer),
+            interface.Button(self.SCREEN_WIDTH // 2 + 20, self.SCREEN_HEIGHT // 2 + 160, 100, 50, "Reset", self.reset)
         ]
         
     def jouer(self):
-        self.STATE = "Jouer"
-        self.miser = 1
+        if self.STATE == "Menu":
+            self.STATE = "Jouer"
+            self.miser = 1
+        else:
+            self.STATE = "Jouer"
     def quitter(self):
         self.STATE = "Quitter"
     def terminer(self):
@@ -209,30 +230,43 @@ class GameEngine:
             pass
         else:
             self.miser = 0
+            self.game.restaurer()
+    def reset(self):
+        self.game.fond += int(self.game.mise)
+        self.game.mise = 0
     def rejouer(self):
         self.STATE = "Jouer"
         self.miser = 1
         self.game.fond += int(self.game.mise)
         self.game.mise = 0
         self.game.restaurer()
-        self.game.melanger()
-        self.game.joueur = [self.game.partager(), self.game.partager()]
-        self.game.croupier = [self.game.partager(), self.game.partager()]
+    def bouttonMise_verif(self):
+        if self.game.fond <= 5000:
+            self.game.mise_max /= 2
+            self.game.taux_mise()
+        if self.game.fond > int(1.5 * self.game.mise_max):
+            self.game.mise_max += 10000
+            self.game.taux_mise()
+        self.buttons_jeuMise = [
+            interface.Button(self.SCREEN_WIDTH // 2 - 280, self.SCREEN_HEIGHT // 2 + 100, 100, 50, str(self.game.mise_disp(0.1)), self.game.mise_10),
+            interface.Button(self.SCREEN_WIDTH // 2 - 80, self.SCREEN_HEIGHT // 2 + 100, 100, 50, str(self.game.mise_disp(0.2)), self.game.mise_20),
+            interface.Button(self.SCREEN_WIDTH - 280, self.SCREEN_HEIGHT // 2 + 100, 100, 50, str(self.game.mise_disp(0.5)), self.game.mise_50),
+            interface.Button(self.SCREEN_WIDTH // 2 - 150, self.SCREEN_HEIGHT // 2 + 160, 150, 50, "Terminer", self.terminer),
+            interface.Button(self.SCREEN_WIDTH // 2 + 20, self.SCREEN_HEIGHT // 2 + 160, 100, 50, "Reset", self.reset)
+        ]
+        
     def menu(self):
         self.STATE = "Menu"
         self.game.fond += int(self.game.mise)
         self.game.mise = 0
-        self.game.sauvegarder(self.game.nom, self.game.fond)
+        self.game.sauvegarder(self.game.nom, self.game.fond, self.game.mise_max)
         self.game.restaurer()
-        self.game.melanger()
-        self.game.joueur = [self.game.partager(), self.game.partager()]
-        self.game.croupier = [self.game.partager(), self.game.partager()]
+        
     
     def pause(self):
-        self.SCREEN.fill((0, 0, 0))
+        self.SCREEN.fill((0, 100, 0))
         for button in self.buttons_pause:
             button.draw(self.SCREEN)
-
         
     def accueil(self):
         if self.BACKGROUND_IMAGE:
@@ -255,7 +289,8 @@ class GameEngine:
             button.draw(self.SCREEN)
     
     def jeu(self):
-        n = 3
+        n = 4
+        time = pygame.time.get_ticks()
         self.SCREEN.fill((0, 100, 0))
         self.SCREEN.blit(pygame.transform.scale(pygame.image.load("Image/pause1.png"), (50, 50)), self.pos_rect)
         solde = str(self.game.fond)
@@ -263,11 +298,17 @@ class GameEngine:
         aff_solde = INPUT_FONT.render(solde, True, WHITE)
         self.SCREEN.blit(txt, (0, self.SCREEN_HEIGHT // 2 + 50))
         self.SCREEN.blit(aff_solde, (100, self.SCREEN_HEIGHT // 2 + 50))
-        #print(self.miser)
-        
+        self.bouttonMise_verif()
+
+        #interface pour la mise
         if self.miser == 1:
+            self.game.nbr_c = 8
             for button in self.buttons_jeuMise:
                 button.draw(self.SCREEN)
+            if len(self.game.joueur) == 2 and self.game.pointage(self.game.joueur) == 21:
+                    self.game.isCroupier = 1
+                    self.isblackjack = 1
+        #en jeu
         else:
             point_joueur = str(self.game.pointage(self.game.joueur))
             point = INPUT_FONT.render("Point : ", True, WHITE)
@@ -275,25 +316,71 @@ class GameEngine:
             self.SCREEN.blit(point, (0, self.SCREEN_HEIGHT // 2))
             self.SCREEN.blit(point_nbr, (100, self.SCREEN_HEIGHT // 2))
 
-            self.SCREEN.blit(pygame.transform.scale(self.game.croupier[0][2], (242//n, 340//n)), (self.SCREEN_WIDTH // 3, 50))
-            self.SCREEN.blit(pygame.transform.scale(self.game.dos[1], (242//n, 340//n)), (self.SCREEN_WIDTH // 3 + 90, 50))
+            #tour du croupier
+            pointJoueur = self.game.pointage(self.game.joueur)
+            pointCroupier = self.game.pointage(self.game.croupier)
+            if self.game.isCroupier == 1:
+                if pointCroupier == pointJoueur:
+                    null = INPUT_FONT.render("Partie nulle", True, WHITE)
+                    self.SCREEN.blit(null, (self.SCREEN_WIDTH // 3, self.SCREEN_HEIGHT // 2))
+                    if time - self.game.maintenant >= 15000:
+                        self.game.fond += int(self.game.mise)
+                        self.game.mise = 0
+                        self.miser = 1
+                elif pointCroupier > pointJoueur and pointCroupier <= 21:
+                    txt = INPUT_FONT.render("Perdu", True, WHITE)
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH // 3, self.SCREEN_HEIGHT // 2))
+                    if time - self.game.maintenant >= 15000:
+                        self.game.mise = 0
+                        self.miser = 1
+                elif pointCroupier > 21:
+                    txt = INPUT_FONT.render("Victoire", True, WHITE)
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH // 3, self.SCREEN_HEIGHT // 2))
+                    if time - self.game.maintenant >= 15000:
+                        self.game.fond += int(2 * self.game.mise)
+                        self.game.mise = 0
+                        self.miser = 1
+                elif pointJoueur > pointCroupier : self.game.carte_croupier()
+
+                for i in range(len(self.game.croupier)):
+                    self.SCREEN.blit(pygame.transform.scale(self.game.croupier[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH // 3 +(i * 70), 100))
+            else:
+                self.SCREEN.blit(pygame.transform.scale(self.game.croupier[0][2], (242//n, 340//n)), (self.SCREEN_WIDTH // 3, 100))
+                self.SCREEN.blit(pygame.transform.scale(self.game.dos[0], (242//n, 340//n)), (self.SCREEN_WIDTH // 3 + 70, 100))
+
             for i in range(0, len(self.game.joueur)):
-                self.SCREEN.blit(pygame.transform.scale(self.game.joueur[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH // 3 + (i * 90 ), self.SCREEN_HEIGHT / 1.7))
+                self.SCREEN.blit(pygame.transform.scale(self.game.joueur[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH // 3 + (i * 70 ), self.SCREEN_HEIGHT / 1.7))
+            for i in range(self.game.nbr_c):
+                self.SCREEN.blit(pygame.transform.scale(self.game.dos[1], (242//n, 340//n)), (50 + i * 70 , 0))
             
+            if pointJoueur > 21:
+                txt = INPUT_FONT.render("BUSTED", True, WHITE)
+                self.SCREEN.blit(txt, (self.SCREEN_WIDTH // 3, self.SCREEN_HEIGHT // 2))
+                if time - self.game.maintenant >= 20000:
+                    self.game.mise = 0
+                    self.miser = 1
+            if self.isblackjack == 1:
+                blackjack_txt = INPUT_FONT.render("BlackJack", True, WHITE)
+                self.SCREEN.blit(blackjack_txt, (self.SCREEN_WIDTH // 3, self.SCREEN_HEIGHT // 2))
+                if time - self.game.maintenant >= 5000:
+                    self.game.fond += int(2.5 * self.game.mise)
+                    self.game.mise = 0
+                    self.miser = 1
+                    self.isblackjack = 0
+
             for button in self.buttons_jeu:
                 button.draw(self.SCREEN)
 
 if __name__ == "__main__":
     game_princ = GameEngine()
-    
     running = True
     clock = pygame.time.Clock()
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT or game_princ.STATE == "Quitter":
                 running = False
-                game_princ.game.sauvegarder(game_princ.game.nom, game_princ.game.fond)
-                pygame.time.delay(1000)
+                game_princ.game.sauvegarder(game_princ.game.nom, game_princ.game.fond, game_princ.game.mise_max)
+                pygame.time.delay(500)
             if game_princ.STATE == "Menu":
                 for button in game_princ.buttons_menu:
                     button.handle_event(event)
@@ -301,9 +388,9 @@ if __name__ == "__main__":
                 if game_princ.miser == 1:
                     for button in game_princ.buttons_jeuMise:
                         button.handle_event(event)
-                else:
-                    for button in game_princ.buttons_jeu:
-                        button.handle_event(event)
+                elif game_princ.isblackjack == 0 and game_princ.game.isCroupier == 0:
+                        for button in game_princ.buttons_jeu:
+                            button.handle_event(event)
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = pygame.mouse.get_pos()
                     if game_princ.pos_rect.collidepoint(mouse_pos):
