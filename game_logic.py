@@ -156,59 +156,6 @@ class Jeu(Carte):
                 mise_max = int(ligne[1])
                 return argent,mise_max
 
-class CardAnimator:
-    def __init__(self, screen_width, screen_height, start_pos,dos_image):
-        self.SCREEN_WIDTH_ANIMAT = screen_width
-        self.SCREEN_HEIGHT_ANIMAT = screen_height
-        self.start_pos_deck = start_pos  # Position (50, 0) dans votre code
-        self.dos = dos_image # Image du dos de carte (self.game.dos[0] ou [1])
-
-        self.is_animating = False
-        self.draw_start_time = 0
-        self.draw_duration = 500  # 500ms pour un mouvement lent
-        self.card_to_animate = None
-        self.target_pos = (0, 0)
-        self.is_card_face_up = False
-
-    def start_animation(self, card_tuple, target_pos, face_up=True):
-        self.card_to_animate = card_tuple
-        self.target_pos = target_pos
-        self.is_card_face_up = face_up
-        self.is_animating = True
-        self.draw_start_time = pygame.time.get_ticks()
-
-    def update(self):
-        """Met à jour l'état de l'animation et retourne True si elle est en cours."""
-        if not self.is_animating:
-            return False
-
-        current_time = pygame.time.get_ticks()
-        elapsed = current_time - self.draw_start_time
-
-        if elapsed >= self.draw_duration:
-            self.is_animating = False
-            return False # Indique que l'animation est terminée
-
-        return True # Indique que l'animation est en cours
-
-    def draw(self, screen):
-        """Dessine la carte en mouvement."""
-        if not self.is_animating:
-            return
-
-        elapsed = pygame.time.get_ticks() - self.draw_start_time
-        progress = elapsed / self.draw_duration
-        n = 4  # Facteur de réduction de la carte
-
-        # Interpolation linéaire
-        current_x = self.start_pos_deck[0] + (self.target_pos[0] - self.start_pos_deck[0]) * progress
-        current_y = self.start_pos_deck[1] + (self.target_pos[1] - self.start_pos_deck[1]) * progress
-
-        # Image à afficher (face ou dos)
-        card_image = self.card_to_animate[2] if self.is_card_face_up else self.dos
-
-        screen.blit(pygame.transform.scale(card_image, (242 // n, 340 // n)), (current_x, current_y))
-
 class Screen:
     def __init__(self, width: int, height: int):
         self.SCREEN_WIDTH = self.SCREEN_WIDTH_INIT = width
@@ -270,16 +217,15 @@ class GameEngine(Screen):
             print("Attention: musique introuvable ou format non supporté")
         
         self.buttons_menu = [
-            interface.Button(pseudo_box.rect.x, BUTTON_START_Y, BUTTON_WIDTH, BUTTON_HEIGHT, "JOUER", self.jouer),
-            interface.Button(pseudo_box.rect.x, BUTTON_START_Y + BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "PARAMÈTRES"),
-            interface.Button(pseudo_box.rect.x, BUTTON_START_Y + 2 * BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "RÈGLES"),
-            interface.Button(pseudo_box.rect.x, BUTTON_START_Y + 3 * BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "QUITTER", self.quitter)
+            interface.Button(pseudo_box.rect.x, BUTTON_START_Y, BUTTON_WIDTH, BUTTON_HEIGHT, "PLAY", self.jouer),
+            interface.Button(pseudo_box.rect.x, BUTTON_START_Y + BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "THEMES"),
+            interface.Button(pseudo_box.rect.x, BUTTON_START_Y + 2 * BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "QUIT", self.quitter)
         ]
     
     def assurance(self):
         self.assuranceAgree = True
         self.isAssurance = False
-        if not self.game.inSplit:
+        if not self.game.inSplit or not self.game.isSplit:
             self.game.fond -= int(self.game.mise / 2)
             self.game.mise += int(self.game.mise / 2)
         elif self.game.inSplit:
@@ -313,28 +259,21 @@ class GameEngine(Screen):
     def fullscreen(self):
         super().fullscreen()
         self.buttons_jeu = [
-            interface.Button(648, self.SCREEN_HEIGHT / 1.1, 100, 50, "Tirer", self.carte_joueur),
-            interface.Button(848, self.SCREEN_HEIGHT / 1.1, 120, 50, "Doubler", self.game.doubler),
-            interface.Button(1060, self.SCREEN_HEIGHT / 1.1, 140, 50, "Terminer", self.game.verification)
+            interface.Button(self.SCREEN_WIDTH * 0.35, self.SCREEN_HEIGHT * 0.92, 100, 50, "HIT", self.carte_joueur),
+            interface.Button(self.SCREEN_WIDTH * 0.44, self.SCREEN_HEIGHT * 0.92, 150, 50, "DOUBLE", self.game.doubler),
+            interface.Button(self.SCREEN_WIDTH * 0.55, self.SCREEN_HEIGHT * 0.92, 140, 50, "STAND", self.game.verification)
         ]
         self.buttons_pause = [
-            interface.Button(680, self.SCREEN_HEIGHT // 2, 150, 50, "Continuer", self.jouer),
-            interface.Button(890, self.SCREEN_HEIGHT // 2, 150, 50, "Rejouer", self.rejouer),
-            interface.Button(1140, self.SCREEN_HEIGHT // 2, 100, 50, "Menu", self.menu)
-        ]
-        self.buttons_jeuMise = [
-            interface.Button(680, self.SCREEN_HEIGHT // 2 + 100, 120, 50, str(self.game.mise_disp(0.1)), self.game.mise_10),
-            interface.Button(880, self.SCREEN_HEIGHT // 2 + 100, 120, 50, str(self.game.mise_disp(0.2)), self.game.mise_20),
-            interface.Button(1080, self.SCREEN_HEIGHT // 2 + 100, 120, 50, str(self.game.mise_disp(0.5)), self.game.mise_50),
-            interface.Button(1280, self.SCREEN_HEIGHT // 2 + 100, 100, 50, "TOUT", self.all),
-            interface.Button(self.SCREEN_WIDTH // 2 - 150, self.SCREEN_HEIGHT // 2 + 200, 150, 50, "Terminer", self.terminer),
-            interface.Button(self.SCREEN_WIDTH // 2 + 150, self.SCREEN_HEIGHT // 2 + 200, 100, 50, "Reset", self.reset)
+            interface.Button(self.SCREEN_WIDTH * 0.3, self.SCREEN_HEIGHT // 2, 170, 50, "CONTINUE", self.jouer),
+            interface.Button(self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2, 160, 50, "RESTART", self.rejouer),
+            interface.Button(self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2, 100, 50, "MENU", self.menu)
         ]
 
     def jouer(self):
         if self.STATE == "Menu":
-            self.STATE = "Jouer"
             self.fullscreen()
+            pygame.time.delay(100)
+            self.STATE = "Jouer"
             self.miser = 1
             self.bouttonMise_verif()
         else:
@@ -370,17 +309,18 @@ class GameEngine(Screen):
         elif self.game.fond > 5000 and self.game.fond <= int(0.5 * self.game.mise_max):
             self.game.mise_max -= 10000
         self.buttons_jeuMise = [
-            interface.Button(680, self.SCREEN_HEIGHT // 2 + 100, 120, 50, str(self.game.mise_disp(0.1)), self.game.mise_10),
-            interface.Button(880, self.SCREEN_HEIGHT // 2 + 100, 120, 50, str(self.game.mise_disp(0.2)), self.game.mise_20),
-            interface.Button(1080, self.SCREEN_HEIGHT // 2 + 100, 120, 50, str(self.game.mise_disp(0.5)), self.game.mise_50),
-            interface.Button(1280, self.SCREEN_HEIGHT // 2 + 100, 100, 50, "TOUT", self.all),
-            interface.Button(self.SCREEN_WIDTH // 2 - 150, self.SCREEN_HEIGHT // 2 + 200, 150, 50, "Terminer", self.terminer),
-            interface.Button(self.SCREEN_WIDTH // 2 + 150, self.SCREEN_HEIGHT // 2 + 200, 100, 50, "Reset", self.reset)
+            interface.Button(self.SCREEN_WIDTH * 0.3, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.1)), self.game.mise_10),
+            interface.Button(self.SCREEN_WIDTH * 0.4, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.2)), self.game.mise_20),
+            interface.Button(self.SCREEN_WIDTH * 0.5, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.5)), self.game.mise_50),
+            interface.Button(self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT * 0.6, 100, 50, "ALL", self.all),
+            interface.Button(self.SCREEN_WIDTH * 0.4, self.SCREEN_HEIGHT * 0.7, 150, 50, "Terminer", self.terminer),
+            interface.Button(self.SCREEN_WIDTH * 0.55, self.SCREEN_HEIGHT * 0.7, 100, 50, "Reset", self.reset)
         ]
         
     def menu(self):
-        self.STATE = "Menu"
         self.windowscreen()
+        pygame.time.delay(100)
+        self.STATE = "Menu"
         self.game.fond += int(self.game.mise)
         self.game.mise = 0
         self.game.sauvegarder(self.game.fond, self.game.mise_max)
@@ -398,33 +338,39 @@ class GameEngine(Screen):
         if not self.game.inSplit:
             if pointCroupier == pointjoueur:
                 txt = TITLE_FONT.render("Partie nulle", True, WHITE)
-                self.SCREEN.blit(txt, (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2))
+                self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
                 if time - self.game.maintenant >= 6000:
                     self.game.fond += int(self.game.mise)
                     self.game.mise = 0
                     self.miser = True
+                    pygame.time.delay(100)
                     self.game.restaurer()
             elif pointCroupier > pointjoueur and pointCroupier <= 21:
                 txt = TITLE_FONT.render("Perdu", True, WHITE)
-                self.SCREEN.blit(txt, (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2))
+                self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
                 if time - self.game.maintenant >= 6000:
                     self.game.mise = 0
                     self.miser = True
+                    pygame.time.delay(100)
                     self.game.restaurer()
             elif pointCroupier > 21:
                 txt = TITLE_FONT.render("Victoire", True, WHITE)
-                self.SCREEN.blit(txt, (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2))
+                self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
                 if time - self.game.maintenant >= 6000:
                     self.game.fond += int(2 * self.game.mise)
                     self.game.mise = 0
                     self.miser = True
+                    pygame.time.delay(100)
                     self.game.restaurer()
-            elif pointjoueur > pointCroupier and not self.isblackjack: self.game.partage_carte(self.game.croupier)
+            elif pointjoueur > pointCroupier and not self.isblackjack:
+                if time - self.game.maintenant >= 500:
+                    self.game.partage_carte(self.game.croupier)
+                    self.game.maintenant = pygame.time.get_ticks()
         else:
             if self.game.isSplit_card and pointSplit_card <= 21:
                 if pointCroupier == pointSplit_card:
                     txt = TITLE_FONT.render("Partie nulle", True, WHITE)
-                    self.SCREEN.blit(txt, (648, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
                     if self.game.joueur != []:
                         if time - self.game.maintenant >= 6000:
                             self.game.fond += int(self.game.mise_split)
@@ -437,10 +383,11 @@ class GameEngine(Screen):
                             self.game.mise_split = 0
                             self.game.isSplit_card = False
                             self.miser = True
+                            pygame.time.delay(100)
                             self.game.restaurer()
                 elif pointCroupier > pointjoueur and pointCroupier <= 21:
                     txt = TITLE_FONT.render("Perdu", True, WHITE)
-                    self.SCREEN.blit(txt, (648, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
                     if self.game.joueur != []:
                         if time - self.game.maintenant >= 6000:
                             self.game.mise_split = 0
@@ -451,10 +398,11 @@ class GameEngine(Screen):
                             self.game.mise_split = 0
                             self.game.isSplit_card = False
                             self.miser = True
+                            pygame.time.delay(100)
                             self.game.restaurer()
                 elif pointCroupier > 21:
                     txt = TITLE_FONT.render("Victoire", True, WHITE)
-                    self.SCREEN.blit(txt, (648, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
                     if self.game.joueur != []:
                         if time - self.game.maintenant >= 6000:
                             self.game.fond += int(2 * self.game.mise_split)
@@ -468,11 +416,14 @@ class GameEngine(Screen):
                             self.game.isSplit_card = False
                             self.miser = True
                             self.game.restaurer()
-                elif not self.isblackjack and pointSplit_card > pointCroupier: self.game.partage_carte(self.game.croupier)
+                elif not self.isblackjack and pointSplit_card > pointCroupier: 
+                    if time - self.game.maintenant >= 500:
+                        self.game.partage_carte(self.game.croupier)
+                        self.game.maintenant = pygame.time.get_ticks()
             elif pointjoueur <= 21 and self.game.joueur != []:
                 if pointCroupier == pointjoueur:
                     txt = TITLE_FONT.render("Partie nulle", True, WHITE)
-                    self.SCREEN.blit(txt, (1300, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.fond += int(self.game.mise)
                         self.game.mise = 0
@@ -482,7 +433,7 @@ class GameEngine(Screen):
                         self.game.restaurer()
                 elif pointCroupier > pointjoueur and pointCroupier <= 21:
                     txt = TITLE_FONT.render("Perdu", True, WHITE)
-                    self.SCREEN.blit(txt, (1300, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.mise = 0
                         self.miser = 1
@@ -491,7 +442,7 @@ class GameEngine(Screen):
                         self.game.restaurer()
                 elif pointCroupier > 21:
                     txt = TITLE_FONT.render("Victoire", True, WHITE)
-                    self.SCREEN.blit(txt, (1300, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.fond += int(2 * self.game.mise)
                         self.game.mise = 0
@@ -499,7 +450,10 @@ class GameEngine(Screen):
                         self.game.orderSplit = 1
                         self.miser = 1
                         self.game.restaurer()
-                elif pointjoueur > pointCroupier and not self.isblackjack: self.game.partage_carte(self.game.croupier)
+                elif pointjoueur > pointCroupier and not self.isblackjack: 
+                    if time - self.game.maintenant >= 500:
+                        self.game.partage_carte(self.game.croupier)
+                        self.game.maintenant = pygame.time.get_ticks()
     
     def pause(self):
         self.SCREEN.fill((0, 100, 0))
@@ -529,11 +483,10 @@ class GameEngine(Screen):
         time = pygame.time.get_ticks()
         self.SCREEN.fill((0, 100, 0))
         self.SCREEN.blit(pygame.transform.scale(pygame.image.load("Image/pause1.png"), (50, 50)), self.pos_rect)
-        solde = str(self.game.fond)
-        txt = INPUT_FONT.render(f"Solde : {solde} Ar", True, WHITE)
+        txt = INPUT_FONT.render(f"Solde : {str(self.game.fond)} Ar", True, WHITE)
         mise = INPUT_FONT.render(f"Mise : {str(self.game.mise)} Ar", True, WHITE)
-        self.SCREEN.blit(txt, (50, self.SCREEN_HEIGHT // 2 + 50))
-        self.SCREEN.blit(mise, (50, self.SCREEN_HEIGHT // 2 + 100))
+        self.SCREEN.blit(txt, (50, self.SCREEN_HEIGHT * 0.5))
+        self.SCREEN.blit(mise, (50, self.SCREEN_HEIGHT * 0.55))
         #interface pour la mise
         if self.miser:
             self.game.nbr_c = 8
@@ -550,7 +503,7 @@ class GameEngine(Screen):
         #en jeu
         else:
             point = INPUT_FONT.render(f"Point : {self.game.pointage(self.game.joueur)}", True, WHITE)
-            self.SCREEN.blit(point, (50, self.SCREEN_HEIGHT // 2))
+            self.SCREEN.blit(point, (50, self.SCREEN_HEIGHT * 0.45))
 
             #tour du croupier
             pointJoueur = self.game.pointage(self.game.joueur)
@@ -572,54 +525,57 @@ class GameEngine(Screen):
                             self.miser = 1
                             self.game.restaurer()
                     else:
-                        if time -  self.game.maintenant <= 0:
+                        if time -  self.game.maintenant == 0:
                             if self.game.inSplit:
                                 self.game.mise = int(self.game.mise*2/3)
                                 self.game.mise_split = int(self.game.mise_split*2/3)
-                            else: self.game.mise = int(self.game.mise*2/3)
-                        self.tourCroupier()
+                                self.assuranceAgree = False
+                            else: 
+                                self.game.mise = int(self.game.mise*2/3)
+                                self.assuranceAgree = False
+                        #self.tourCroupier()
                 else: self.tourCroupier()
 
                 for i in range(len(self.game.croupier)):
-                    self.SCREEN.blit(pygame.transform.scale(self.game.croupier[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH // 2.5 +(i * 80), 250))
+                    self.SCREEN.blit(pygame.transform.scale(self.game.croupier[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH * (0.45 + (i * 5/100)), self.SCREEN_HEIGHT * 0.2))
             else:
-                self.SCREEN.blit(pygame.transform.scale(self.game.croupier[0][2], (242//n, 340//n)), (self.SCREEN_WIDTH // 2.5, 250))
-                self.SCREEN.blit(pygame.transform.scale(self.game.dos[1], (242//n, 340//n)), (self.SCREEN_WIDTH // 2.5 + 80, 250))
+                self.SCREEN.blit(pygame.transform.scale(self.game.croupier[0][2], (242//n, 340//n)), (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT * 0.2))
+                self.SCREEN.blit(pygame.transform.scale(self.game.dos[1], (242//n, 340//n)), (self.SCREEN_WIDTH * 0.50, self.SCREEN_HEIGHT * 0.2))
 
             
             if self.game.inSplit:
                 txt = INPUT_FONT.render(f"Point : {str(self.game.pointage(self.game.split_card))}", True, WHITE)
-                self.SCREEN.blit(txt, (50, self.SCREEN_HEIGHT // 2 - 50))
+                self.SCREEN.blit(txt, (50, self.SCREEN_HEIGHT * 0.4))
                 split = INPUT_FONT.render(f"Mise split : {self.game.mise_split} Ar", True, WHITE)
-                self.SCREEN.blit(split, (50, self.SCREEN_HEIGHT // 2 + 150))
+                self.SCREEN.blit(split, (50, self.SCREEN_HEIGHT * 0.6))
                 for i in range(len(self.game.split_card)):
-                    self.SCREEN.blit(pygame.transform.scale(self.game.split_card[i][2], (242//n, 340//n)), (648 + i * 80, self.SCREEN_HEIGHT / 1.4))
+                    self.SCREEN.blit(pygame.transform.scale(self.game.split_card[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH * (0.2 + (i* 5/100)), self.SCREEN_HEIGHT * 0.65))
                 for i in range(len(self.game.joueur)):
-                    self.SCREEN.blit(pygame.transform.scale(self.game.joueur[i][2], (242//n, 340//n)), (1300+i*80, self.SCREEN_HEIGHT / 1.4))
+                    self.SCREEN.blit(pygame.transform.scale(self.game.joueur[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH * (0.6 + (i * 5/100)), self.SCREEN_HEIGHT * 0.65))
             else:
                 for i in range(len(self.game.joueur)):
-                    self.SCREEN.blit(pygame.transform.scale(self.game.joueur[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH // 2.5 + (i * 80 ), self.SCREEN_HEIGHT / 1.4))
+                    self.SCREEN.blit(pygame.transform.scale(self.game.joueur[i][2], (242//n, 340//n)), ((i * 5/100 + 0.45) * self.SCREEN_WIDTH, self.SCREEN_HEIGHT * 0.65))
             for i in range(self.game.nbr_c):
-                self.SCREEN.blit(pygame.transform.scale(self.game.dos[1], (242//n, 340//n)), (350 + i * 130 , 20))
+                self.SCREEN.blit(pygame.transform.scale(self.game.dos[1], (242//n, 340//n)), (self.SCREEN_WIDTH * (0.2 + (i * 8/100)), self.SCREEN_HEIGHT * 0.005))
             if not self.game.inSplit:
                 if pointJoueur > 21:
                     txt = TITLE_FONT.render("BUSTED", True, WHITE)
-                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2))
-                    if time - self.game.maintenant >= 20000:
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
+                    if time - self.game.maintenant >= 6000:
                         self.game.mise = 0
                         self.miser = 1
                         self.game.restaurer()
             elif self.game.inSplit:
                 if pointSplit_card > 21:
                     txt = TITLE_FONT.render("BUSTED", True, WHITE)
-                    self.SCREEN.blit(txt, (648, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.mise_split = 0
                         self.game.orderSplit = 2
                         self.game.inSplit = []
                 elif pointJoueur > 21 and pointSplit_card > 21:
                     txt = TITLE_FONT.render("BUSTED", True, WHITE)
-                    self.SCREEN.blit(txt, (1300, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.mise = 0
                         self.miser = 1
@@ -628,15 +584,16 @@ class GameEngine(Screen):
                         self.game.restaurer()
                 elif pointSplit_card < 21 and pointJoueur > 21:
                     txt = TITLE_FONT.render("BUSTED", True, WHITE)
-                    self.SCREEN.blit(txt, (1300, self.SCREEN_HEIGHT // 2))
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.joueur = []
                         self.game.mise = 0
                         self.game.isCroupier = True
                         self.game.maintenant = pygame.time.get_ticks()
             if self.isblackjack:
+                pygame.time.delay(500)
                 blackjack_txt = TITLE_FONT.render("BlackJack", True, WHITE)
-                self.SCREEN.blit(blackjack_txt, (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2))
+                self.SCREEN.blit(blackjack_txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
                 if time - self.game.maintenant >= 6000:
                     self.game.fond += int(2.5 * self.game.mise)
                     self.game.mise = 0
@@ -646,13 +603,13 @@ class GameEngine(Screen):
 
 
             if self.isAssurance:
-                self.assurancebutton = interface.Button(1300, self.SCREEN_HEIGHT / 1.1, 160, 50, "Assurance", self.assurance)
+                self.assurancebutton = interface.Button(self.SCREEN_WIDTH * 0.65, self.SCREEN_HEIGHT * 0.92, 160, 50, "Assurance", self.assurance)
                 self.assurancebutton.draw(self.SCREEN)
             if self.game.isSplit and self.isAssurance:
-                self.splitbutton = interface.Button(1560, self.SCREEN_HEIGHT / 1.1, 100, 50, "Split", self.split)
+                self.splitbutton = interface.Button(self.SCREEN_WIDTH * 0.75, self.SCREEN_HEIGHT * 0.92, 100, 50, "Split", self.split)
                 self.splitbutton.draw(self.SCREEN)
             elif not self.isAssurance and self.game.isSplit: 
-                self.splitbutton = interface.Button(1300, self.SCREEN_HEIGHT / 1.1, 100, 50, "Split", self.split)
+                self.splitbutton = interface.Button(self.SCREEN_WIDTH * 0.65, self.SCREEN_HEIGHT * 0.92, 100, 50, "Split", self.split)
                 self.splitbutton.draw(self.SCREEN)
             for button in self.buttons_jeu:
                 button.draw(self.SCREEN)
@@ -666,7 +623,6 @@ if __name__ == "__main__":
             if event.type == pygame.QUIT or game_princ.STATE == "Quitter":
                 running = False
                 game_princ.game.sauvegarder(game_princ.game.fond, game_princ.game.mise_max)
-                pygame.time.delay(500)
             if game_princ.STATE == "Menu":
                 for button in game_princ.buttons_menu:
                     button.handle_event(event)
@@ -674,7 +630,7 @@ if __name__ == "__main__":
                 if game_princ.miser:
                     for button in game_princ.buttons_jeuMise:
                         button.handle_event(event)
-                elif not (game_princ.isblackjack and game_princ.game.isCroupier and game_princ.game.isSplit):
+                elif not (game_princ.isblackjack and game_princ.game.isCroupier):
                         if game_princ.isAssurance:
                             game_princ.assurancebutton.handle_event(event)
                         if game_princ.game.isSplit:
