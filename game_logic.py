@@ -35,9 +35,14 @@ class Carte:
             ('K', '♠', pygame.image.load('Image/spades_K.png')), ('K', '♣', pygame.image.load('Image/clubs_K.png')), ('K', '♦', pygame.image.load('Image/diamonds_K.png')), ('K', '♥', pygame.image.load('Image/hearts_K.png')),
             ('A', '♠', pygame.image.load('Image/spades_A.png')), ('A', '♣', pygame.image.load('Image/clubs_A.png')), ('A', '♦', pygame.image.load('Image/diamonds_A.png')), ('A', '♥', pygame.image.load('Image/hearts_A.png'))
         ]
+        self.dos = [
+            pygame.image.load('Image/Dos (1).png'),
+            pygame.image.load('Image/Dos (2).png'),
+            pygame.image.load('Image/Dos (3).png'),
+            pygame.image.load('Image/Dos (4).png')
+        ]
+        self.dos_index = 0
         self.carte = list(self.c)
-
-        self.dos = [pygame.image.load('Image/back_light.png'), pygame.image.load('Image/back_dark.png')]
 
     def melanger(self):
         random.shuffle(self.carte)
@@ -177,51 +182,85 @@ class Screen:
         self.SCREEN_HEIGHT = self.SCREEN_HEIGHT_INIT
 
 class GameEngine(Screen):
-    def __init__(self, width: int, height: int, screen_width: int, screen_height: int, start_pos: tuple,dos_image: int):
+    def __init__(self, width: int, height: int):
         super().__init__(width, height)
         self.STATE = "Menu"
         self.miser = True
         self.isblackjack = False
         self.game = Jeu()
+        self.isTraduice = True
         self.isAssurance = False
         self.assuranceAgree = False
+        self.traduction = interface.Button(50, 350, 250, 60, "Traduction", self.traduire)
         
         self.pos_rect = pygame.Rect(0, 0, 50, 50)
         
-        PADDING = 20
-        BUTTON_WIDTH = 250
-        BUTTON_HEIGHT = 60
-        BUTTON_START_Y = 250
-        BUTTON_SPACING = BUTTON_HEIGHT + PADDING
-        
-        pseudo_box = interface.TextBox(
-            self.SCREEN_WIDTH - BUTTON_WIDTH - 50,
-            BUTTON_START_Y - 70,
-            BUTTON_WIDTH,
-            BUTTON_HEIGHT - 10,
-            placeholder="Ton pseudo..."
-        )
-        
         try:
-            BACKGROUND_IMAGE = pygame.image.load('Image/BG_joker.png').convert()
+            BACKGROUND_IMAGE = pygame.image.load('Image/BG.png').convert()
             self.BACKGROUND_IMAGE = pygame.transform.scale(BACKGROUND_IMAGE, (self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
         except pygame.error:
             print("Attention: image introuvable, fond noir utilisé")
             self.BACKGROUND_IMAGE = None
         
         try:
-            pygame.mixer.music.load("KOOL CATS by Kevin MacLeod.mp3")  # Remplace par ton fichier
+            pygame.mixer.music.load("House In a Forest Loop.ogg")  # Remplace par ton fichier
             pygame.mixer.music.set_volume(0.5)           # Volume 50%
             pygame.mixer.music.play(-1)                  # Boucle infinie
         except pygame.error:
             print("Attention: musique introuvable ou format non supporté")
         
         self.buttons_menu = [
-            interface.Button(pseudo_box.rect.x, BUTTON_START_Y, BUTTON_WIDTH, BUTTON_HEIGHT, "PLAY", self.jouer),
-            interface.Button(pseudo_box.rect.x, BUTTON_START_Y + BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "THEMES"),
-            interface.Button(pseudo_box.rect.x, BUTTON_START_Y + 2 * BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT, "QUIT", self.quitter)
+            interface.Button(500, 330, 250, 60, "THEMES", self.themes_menu),
+            interface.Button(500, 250, 250, 60, "PLAY", self.jouer),
+            interface.Button(500, 410, 250, 60, "QUIT", self.quitter)
         ]
-    
+    def themes_menu(self):
+        self.STATE = "Themes"
+        # On définit 4 boutons de choix + 1 retour
+        BW, BH = 150, 50
+        self.buttons_themes = [
+            interface.Button(self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT * 0.7, BW, BH, "Style 1", self.set_dos_1),
+            interface.Button(self.SCREEN_WIDTH * 0.35, self.SCREEN_HEIGHT * 0.7, BW, BH, "Style 2", self.set_dos_2),
+            interface.Button(self.SCREEN_WIDTH * 0.5, self.SCREEN_HEIGHT * 0.7, BW, BH, "Style 3", self.set_dos_3),
+            interface.Button(self.SCREEN_WIDTH * 0.65, self.SCREEN_HEIGHT * 0.7, BW, BH, "Style 4", self.set_dos_4),
+            interface.Button(self.SCREEN_WIDTH * 0.42, self.SCREEN_HEIGHT * 0.85, 200, BH, "RETOUR", self.retour_menu)
+        ]
+
+    def set_dos_1(self):
+        self.game.dos_index = 0
+
+    def set_dos_2(self):
+        self.game.dos_index = 1
+
+    def set_dos_3(self):
+        self.game.dos_index = 2
+
+    def set_dos_4(self):
+        self.game.dos_index = 3
+
+    def retour_menu(self):
+        self.STATE = "Menu"
+
+    def themes_display(self):
+        self.SCREEN.fill((20, 20, 20))
+
+
+        # Affichage des 4 dos pour prévisualisation
+        n = 1.5
+        for i in range(4):
+            img = pygame.transform.scale(self.game.dos[i], (int(242 // n), int(340 // n)))
+            # Positionnement au dessus des boutons
+            x_pos = self.SCREEN_WIDTH * (0.2 + (i * 0.15))
+            self.SCREEN.blit(img, (x_pos, self.SCREEN_HEIGHT * 0.3))
+
+            # Encadré doré si sélectionné
+            if self.game.dos_index == i:
+                pygame.draw.rect(self.SCREEN, LIGHT_BEIGE,
+                                 (x_pos - 5, self.SCREEN_HEIGHT * 0.3 - 5, img.get_width() + 10, img.get_height() + 10),
+                                 3)
+
+        for button in self.buttons_themes:
+            button.draw(self.SCREEN)
     def assurance(self):
         self.assuranceAgree = True
         self.isAssurance = False
@@ -258,16 +297,28 @@ class GameEngine(Screen):
     
     def fullscreen(self):
         super().fullscreen()
-        self.buttons_jeu = [
-            interface.Button(self.SCREEN_WIDTH * 0.35, self.SCREEN_HEIGHT * 0.92, 100, 50, "HIT", self.carte_joueur),
-            interface.Button(self.SCREEN_WIDTH * 0.44, self.SCREEN_HEIGHT * 0.92, 150, 50, "DOUBLE", self.game.doubler),
-            interface.Button(self.SCREEN_WIDTH * 0.55, self.SCREEN_HEIGHT * 0.92, 140, 50, "STAND", self.game.verification)
-        ]
-        self.buttons_pause = [
-            interface.Button(self.SCREEN_WIDTH * 0.3, self.SCREEN_HEIGHT // 2, 170, 50, "CONTINUE", self.jouer),
-            interface.Button(self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2, 160, 50, "RESTART", self.rejouer),
-            interface.Button(self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2, 100, 50, "MENU", self.menu)
-        ]
+        if not self.isTraduice:
+            self.buttons_jeu = [
+                interface.Button(self.SCREEN_WIDTH * 0.35, self.SCREEN_HEIGHT * 0.92, 100, 50, "TIRER", self.carte_joueur),
+                interface.Button(self.SCREEN_WIDTH * 0.44, self.SCREEN_HEIGHT * 0.92, 150, 50, "DOUBLER", self.game.doubler),
+                interface.Button(self.SCREEN_WIDTH * 0.55, self.SCREEN_HEIGHT * 0.92, 140, 50, "RESTER", self.game.verification)
+            ]
+            self.buttons_pause = [
+                interface.Button(self.SCREEN_WIDTH * 0.3, self.SCREEN_HEIGHT // 2, 200, 50, "CONTINUER", self.jouer),
+                interface.Button(self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2, 160, 50, "REJOUER", self.rejouer),
+                interface.Button(self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2, 100, 50, "MENU", self.menu)
+            ]
+        else:
+            self.buttons_jeu = [
+                interface.Button(self.SCREEN_WIDTH * 0.35, self.SCREEN_HEIGHT * 0.92, 100, 50, "HIT", self.carte_joueur),
+                interface.Button(self.SCREEN_WIDTH * 0.44, self.SCREEN_HEIGHT * 0.92, 150, 50, "DOUBLE", self.game.doubler),
+                interface.Button(self.SCREEN_WIDTH * 0.55, self.SCREEN_HEIGHT * 0.92, 140, 50, "STAND", self.game.verification)
+            ]
+            self.buttons_pause = [
+                interface.Button(self.SCREEN_WIDTH * 0.3, self.SCREEN_HEIGHT // 2, 170, 50, "CONTINUE", self.jouer),
+                interface.Button(self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2, 160, 50, "RESTART", self.rejouer),
+                interface.Button(self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2, 100, 50, "MENU", self.menu)
+            ]
 
     def jouer(self):
         if self.STATE == "Menu":
@@ -278,6 +329,7 @@ class GameEngine(Screen):
             self.bouttonMise_verif()
         else:
             self.STATE = "Jouer"
+        pygame.time.delay(100)
         
     def quitter(self):
         self.STATE = "Quitter"
@@ -308,15 +360,24 @@ class GameEngine(Screen):
                 self.game.taux_mise()
         elif self.game.fond > 5000 and self.game.fond <= int(0.5 * self.game.mise_max):
             self.game.mise_max -= 10000
-        self.buttons_jeuMise = [
-            interface.Button(self.SCREEN_WIDTH * 0.3, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.1)), self.game.mise_10),
-            interface.Button(self.SCREEN_WIDTH * 0.4, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.2)), self.game.mise_20),
-            interface.Button(self.SCREEN_WIDTH * 0.5, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.5)), self.game.mise_50),
-            interface.Button(self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT * 0.6, 100, 50, "ALL", self.all),
-            interface.Button(self.SCREEN_WIDTH * 0.4, self.SCREEN_HEIGHT * 0.7, 150, 50, "Terminer", self.terminer),
-            interface.Button(self.SCREEN_WIDTH * 0.55, self.SCREEN_HEIGHT * 0.7, 100, 50, "Reset", self.reset)
-        ]
-        
+        if not self.isTraduice:
+            self.buttons_jeuMise = [
+                interface.Button(self.SCREEN_WIDTH * 0.3, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.1)), self.game.mise_10),
+                interface.Button(self.SCREEN_WIDTH * 0.4, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.2)), self.game.mise_20),
+                interface.Button(self.SCREEN_WIDTH * 0.5, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.5)), self.game.mise_50),
+                interface.Button(self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT * 0.6, 100, 50, "TOUT", self.all),
+                interface.Button(self.SCREEN_WIDTH * 0.35, self.SCREEN_HEIGHT * 0.7, 200, 50, "TERMINER", self.terminer),
+                interface.Button(self.SCREEN_WIDTH * 0.55, self.SCREEN_HEIGHT * 0.7, 200, 50, "REMETTRE", self.reset)
+            ]
+        else:
+            self.buttons_jeuMise = [
+                interface.Button(self.SCREEN_WIDTH * 0.3, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.1)), self.game.mise_10),
+                interface.Button(self.SCREEN_WIDTH * 0.4, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.2)), self.game.mise_20),
+                interface.Button(self.SCREEN_WIDTH * 0.5, self.SCREEN_HEIGHT * 0.6, 120, 50, str(self.game.mise_disp(0.5)), self.game.mise_50),
+                interface.Button(self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT * 0.6, 100, 50, "ALL", self.all),
+                interface.Button(self.SCREEN_WIDTH * 0.35, self.SCREEN_HEIGHT * 0.7, 200, 50, "FINISHED", self.terminer),
+                interface.Button(self.SCREEN_WIDTH * 0.55, self.SCREEN_HEIGHT * 0.7, 150, 50, "RESET", self.reset)
+            ]
     def menu(self):
         self.windowscreen()
         pygame.time.delay(100)
@@ -337,7 +398,10 @@ class GameEngine(Screen):
         time = pygame.time.get_ticks()
         if not self.game.inSplit:
             if pointCroupier == pointjoueur:
-                txt = TITLE_FONT.render("Partie nulle", True, WHITE)
+                if not self.isTraduice:
+                    txt = TITLE_FONT.render("NULLE", True, WHITE)
+                else:
+                    txt = TITLE_FONT.render("PUSH", True, WHITE)
                 self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
                 if time - self.game.maintenant >= 6000:
                     self.game.fond += int(self.game.mise)
@@ -346,7 +410,10 @@ class GameEngine(Screen):
                     pygame.time.delay(100)
                     self.game.restaurer()
             elif pointCroupier > pointjoueur and pointCroupier <= 21:
-                txt = TITLE_FONT.render("Perdu", True, WHITE)
+                if not self.isTraduice:
+                    txt = TITLE_FONT.render("PERDU", True, WHITE)
+                else:
+                    txt = TITLE_FONT.render("LOSE", True, WHITE)
                 self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
                 if time - self.game.maintenant >= 6000:
                     self.game.mise = 0
@@ -354,8 +421,12 @@ class GameEngine(Screen):
                     pygame.time.delay(100)
                     self.game.restaurer()
             elif pointCroupier > 21:
-                txt = TITLE_FONT.render("Victoire", True, WHITE)
-                self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
+                if not self.isTraduice:
+                    txt = TITLE_FONT.render("VICTOIRE", True, WHITE)
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
+                else:
+                    txt = TITLE_FONT.render("VICTORY", True, WHITE)
+                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT // 2))
                 if time - self.game.maintenant >= 6000:
                     self.game.fond += int(2 * self.game.mise)
                     self.game.mise = 0
@@ -369,8 +440,12 @@ class GameEngine(Screen):
         else:
             if self.game.isSplit_card and pointSplit_card <= 21:
                 if pointCroupier == pointSplit_card:
-                    txt = TITLE_FONT.render("Partie nulle", True, WHITE)
-                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
+                    if not self.isTraduice:
+                        txt = TITLE_FONT.render("NULLE", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
+                    else:
+                        txt = TITLE_FONT.render("PUSH", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
                     if self.game.joueur != []:
                         if time - self.game.maintenant >= 6000:
                             self.game.fond += int(self.game.mise_split)
@@ -386,8 +461,12 @@ class GameEngine(Screen):
                             pygame.time.delay(100)
                             self.game.restaurer()
                 elif pointCroupier > pointjoueur and pointCroupier <= 21:
-                    txt = TITLE_FONT.render("Perdu", True, WHITE)
-                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
+                    if not self.isTraduice:
+                        txt = TITLE_FONT.render("PERDU", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
+                    else:
+                        txt = TITLE_FONT.render("LOSE", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
                     if self.game.joueur != []:
                         if time - self.game.maintenant >= 6000:
                             self.game.mise_split = 0
@@ -401,7 +480,10 @@ class GameEngine(Screen):
                             pygame.time.delay(100)
                             self.game.restaurer()
                 elif pointCroupier > 21:
-                    txt = TITLE_FONT.render("Victoire", True, WHITE)
+                    if not self.isTraduice:
+                        txt = TITLE_FONT.render("VICTOIRE", True, WHITE)
+                    else:
+                        txt = TITLE_FONT.render("VICTORY", True, WHITE)
                     self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.2, self.SCREEN_HEIGHT // 2))
                     if self.game.joueur != []:
                         if time - self.game.maintenant >= 6000:
@@ -422,8 +504,12 @@ class GameEngine(Screen):
                         self.game.maintenant = pygame.time.get_ticks()
             elif pointjoueur <= 21 and self.game.joueur != []:
                 if pointCroupier == pointjoueur:
-                    txt = TITLE_FONT.render("Partie nulle", True, WHITE)
-                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
+                    if not self.isTraduice:
+                        txt = TITLE_FONT.render("NULLE", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
+                    else:
+                        txt = TITLE_FONT.render("PUSH", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.fond += int(self.game.mise)
                         self.game.mise = 0
@@ -432,8 +518,12 @@ class GameEngine(Screen):
                         self.game.orderSplit = 1
                         self.game.restaurer()
                 elif pointCroupier > pointjoueur and pointCroupier <= 21:
-                    txt = TITLE_FONT.render("Perdu", True, WHITE)
-                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
+                    if not self.isTraduice:
+                        txt = TITLE_FONT.render("PERDU", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
+                    else:
+                        txt = TITLE_FONT.render("LOSE", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.mise = 0
                         self.miser = 1
@@ -441,8 +531,12 @@ class GameEngine(Screen):
                         self.game.orderSplit = 1
                         self.game.restaurer()
                 elif pointCroupier > 21:
-                    txt = TITLE_FONT.render("Victoire", True, WHITE)
-                    self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
+                    if not self.isTraduice:
+                        txt = TITLE_FONT.render("VICTOIRE", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
+                    else:
+                        txt = TITLE_FONT.render("VICTORY", True, WHITE)
+                        self.SCREEN.blit(txt, (self.SCREEN_WIDTH * 0.6, self.SCREEN_HEIGHT // 2))
                     if time - self.game.maintenant >= 6000:
                         self.game.fond += int(2 * self.game.mise)
                         self.game.mise = 0
@@ -473,10 +567,26 @@ class GameEngine(Screen):
         title_surf_1 = TITLE_FONT.render("BLACKJACK", True, LIGHT_BEIGE)
         title_surf_2 = TITLE_FONT.render("21", True, WHITE)
         self.SCREEN.blit(title_surf_1, (50, 150))
-        self.SCREEN.blit(title_surf_2, (50, 250))
+        self.SCREEN.blit(title_surf_2, (175, 250))
 
         for button in self.buttons_menu:
             button.draw(self.SCREEN)
+        self.traduction.draw(self.SCREEN)
+    def traduire(self):
+        if self.isTraduice:
+            self.buttons_menu = [
+                interface.Button(500, 250, 250, 60, "JOUER", self.jouer),
+                interface.Button(500, 330, 250, 60, "THÈMES", self.themes_menu),
+                interface.Button(500, 410, 250, 60, "QUITTER", self.quitter)
+            ]
+            self.isTraduice = False
+        else:
+            self.buttons_menu = [
+                interface.Button(500, 250, 250, 60, "PLAY", self.jouer),
+                interface.Button(500, 330, 250, 60, "THEMES"),
+                interface.Button(500, 410, 250, 60, "QUIT", self.quitter)
+            ]
+            self.isTraduice = True
     
     def jeu(self):
         n = 2
@@ -540,7 +650,7 @@ class GameEngine(Screen):
                     self.SCREEN.blit(pygame.transform.scale(self.game.croupier[i][2], (242//n, 340//n)), (self.SCREEN_WIDTH * (0.45 + (i * 5/100)), self.SCREEN_HEIGHT * 0.2))
             else:
                 self.SCREEN.blit(pygame.transform.scale(self.game.croupier[0][2], (242//n, 340//n)), (self.SCREEN_WIDTH * 0.45, self.SCREEN_HEIGHT * 0.2))
-                self.SCREEN.blit(pygame.transform.scale(self.game.dos[1], (242//n, 340//n)), (self.SCREEN_WIDTH * 0.50, self.SCREEN_HEIGHT * 0.2))
+                self.SCREEN.blit(pygame.transform.scale(self.game.dos[self.game.dos_index], (242//n, 340//n)), (self.SCREEN_WIDTH * 0.50, self.SCREEN_HEIGHT * 0.2))
 
             
             if self.game.inSplit:
@@ -556,7 +666,7 @@ class GameEngine(Screen):
                 for i in range(len(self.game.joueur)):
                     self.SCREEN.blit(pygame.transform.scale(self.game.joueur[i][2], (242//n, 340//n)), ((i * 5/100 + 0.45) * self.SCREEN_WIDTH, self.SCREEN_HEIGHT * 0.65))
             for i in range(self.game.nbr_c):
-                self.SCREEN.blit(pygame.transform.scale(self.game.dos[1], (242//n, 340//n)), (self.SCREEN_WIDTH * (0.2 + (i * 8/100)), self.SCREEN_HEIGHT * 0.005))
+                self.SCREEN.blit(pygame.transform.scale(self.game.dos[self.game.dos_index], (242//n, 340//n)), (self.SCREEN_WIDTH * (0.2 + (i * 8/100)), self.SCREEN_HEIGHT * 0.005))
             if not self.game.inSplit:
                 if pointJoueur > 21:
                     txt = TITLE_FONT.render("BUSTED", True, WHITE)
@@ -615,7 +725,7 @@ class GameEngine(Screen):
                 button.draw(self.SCREEN)
 
 if __name__ == "__main__":
-    game_princ = GameEngine(800, 600, 1920, 1080, (50, 0), 1)
+    game_princ = GameEngine(800, 600)
     running = True
     clock = pygame.time.Clock()
     while running:
@@ -625,6 +735,10 @@ if __name__ == "__main__":
                 game_princ.game.sauvegarder(game_princ.game.fond, game_princ.game.mise_max)
             if game_princ.STATE == "Menu":
                 for button in game_princ.buttons_menu:
+                    button.handle_event(event)
+                game_princ.traduction.handle_event(event)
+            if game_princ.STATE == "Themes":
+                for button in game_princ.buttons_themes:
                     button.handle_event(event)
             if game_princ.STATE == "Jouer":
                 if game_princ.miser:
@@ -651,6 +765,8 @@ if __name__ == "__main__":
             
         if game_princ.STATE == "Menu":
             game_princ.accueil()
+        elif game_princ.STATE == "Themes":
+            game_princ.themes_display()
         elif game_princ.STATE == "Jouer":
             game_princ.jeu()
         elif game_princ.STATE == "Pause":
